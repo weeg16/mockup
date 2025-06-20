@@ -40,6 +40,7 @@ int main()
         }
         else if (command == "initialize") {
             if (loadConfig("config.txt", config)) {
+                coreManager.setScheduler(config.schedulerType, config.quantumCycles);
                 std::cout << "\n[OK] Configuration loaded.\n\n";
                 std::this_thread::sleep_for(std::chrono::seconds(2));
                 clearScreen();
@@ -55,7 +56,7 @@ int main()
         }
         else if (command == "scheduler-start") {
             if (!schedulerStarted) {
-                std::cout << "\n[INFO] Starting FCFS Scheduler...\n\n";
+                std::cout << "\n[INFO] Starting " << config.schedulerType << " Scheduler...\n\n";
                 std::this_thread::sleep_for(std::chrono::seconds(2));
                 clearScreen();
                 printHeader();

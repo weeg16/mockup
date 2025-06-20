@@ -20,20 +20,10 @@ struct Process {
     Process(const std::string& name, int totalIns)
         : name(name),
           totalInstructions(totalIns),
-          executedInstructions(0),
-          outputFile(name + ".txt") {}
-
-    ~Process() {
-        if (outputFile.is_open()) {
-            outputFile.close();
-        }
-    }
+          executedInstructions(0) {}
 
     void logPrint(int coreId, const std::string& timestamp) { // disable before submission
-        outputFile << "(" << timestamp << ") "
-                << "Core: " << coreId << " "
-                << "\"Hello world from " << name << "!\"\n";
-        outputFile.flush();
+        
     }
 
     bool isFinished() const {
@@ -44,6 +34,9 @@ struct Process {
 class CoreManager {
 private:
     static const int NUM_CORES = 4;
+
+    std::string schedulerType = "fcfs";
+    int quantumCycles = 1;
 
     std::vector<std::thread> cores;
     std::vector<bool> coreBusy;
@@ -82,6 +75,11 @@ public:
         readyQueue.push(proc);
         allProcesses.push_back(proc);
         queueCond.notify_one();
+    }
+
+    void setScheduler(const std::string& type, int quantum) {
+        schedulerType = type;
+        quantumCycles = std::max(1, quantum);
     }
 
     void stopScheduler() {
@@ -138,13 +136,31 @@ private:
                 proc->assignedCore = coreId;
             }
 
-            while (!proc->isFinished()) {
-                proc->logPrint(coreId, getCurrentTimestamp());
-                ++proc->executedInstructions;
-                ++coreInstructions[coreId]; 
+            if (schedulerType == "fcfs") {
+                // Run until finished (non-preemptive)
+                while (!proc->isFinished()) {
+                    ++proc->executedInstructions;
+                    ++coreInstructions[coreId];
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                }
+            } else if (schedulerType == "rr") {
+                // Round Robin: Run for a max of `quantumCycles`
+                int cycles = 0;
+                while (!proc->isFinished() && cycles < quantumCycles) {
+                    ++proc->executedInstructions;
+                    ++coreInstructions[coreId];
+                    ++cycles;
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                }
 
-                std::this_thread::sleep_for(std::chrono::milliseconds(100)); // can delay further if needed
+                // If process is not finished, requeue
+                if (!proc->isFinished()) {
+                    std::lock_guard<std::mutex> lock(queueMutex);
+                    readyQueue.push(proc);
+                    queueCond.notify_one(); // allow other cores to pick it up
+                }
             }
+
 
             coreBusy[coreId] = false;
         }

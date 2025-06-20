@@ -144,7 +144,6 @@ private:
                     std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 }
             } else if (schedulerType == "rr") {
-                // Round Robin: Run for a max of `quantumCycles`
                 int cycles = 0;
                 while (!proc->isFinished() && cycles < quantumCycles) {
                     ++proc->executedInstructions;
@@ -153,11 +152,10 @@ private:
                     std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 }
 
-                // If process is not finished, requeue
                 if (!proc->isFinished()) {
                     std::lock_guard<std::mutex> lock(queueMutex);
                     readyQueue.push(proc);
-                    queueCond.notify_one(); // allow other cores to pick it up
+                    queueCond.notify_one(); 
                 }
             }
 

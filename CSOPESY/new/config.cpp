@@ -1,4 +1,5 @@
 #include "config.h"
+#include <algorithm>
 #include <fstream>
 #include <sstream>
 #include <iomanip>
@@ -19,8 +20,17 @@ bool loadConfig(const std::string& filename, Config& config) {
 
         if (key == "num-cpu") iss >> config.numCPU;
         else if (key == "scheduler") {
-            char quote;
-            iss >> quote >> config.schedulerType >> quote;
+            std::string raw;
+            iss >> raw;
+
+            // Remove surrounding quotes manually (if any)
+            if (!raw.empty() && raw.front() == '"' && raw.back() == '"') {
+                raw = raw.substr(1, raw.size() - 2);
+            }
+
+            std::transform(raw.begin(), raw.end(), raw.begin(), ::tolower);
+            config.schedulerType = raw;
+
         }
         else if (key == "quantum-cycles") iss >> config.quantumCycles;
         else if (key == "batch-process-freq") iss >> config.batchProcFreq;

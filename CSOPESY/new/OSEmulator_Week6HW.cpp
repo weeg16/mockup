@@ -1,5 +1,5 @@
 /*
-
+    DIRECTORY: cd CSOPESY\new
     BUILD: g++ -std=c++11 -I"Header Files" -o emulator OSEmulator_Week6HW.cpp config.cpp screen.cpp util.cpp
     RUN: emulator
 
@@ -60,6 +60,8 @@ int main()
                 std::this_thread::sleep_for(std::chrono::seconds(2));
                 clearScreen();
                 printHeader();
+                std::cout << "[DEBUG] Scheduler type: " << config.schedulerType
+                << ", Quantum: " << config.quantumCycles << "\n";
 
                 coreManager.start();  // Start 4 core threads
 

@@ -1,7 +1,8 @@
 #include "config.h"
 #include "util.h"
 #include "screen.h"
-#include "scheduler.h"
+#include "process.h"
+#include "core_manager.h"
 
 #include <iostream>
 #include <string>

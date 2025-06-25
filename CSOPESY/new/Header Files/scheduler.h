@@ -11,22 +11,6 @@
 #include <vector>
 #include <random>
 
-enum class InstructionType {
-    PRINT,
-    DECLARE,
-    ADD,
-    SUBTRACT,
-    SLEEP,
-    FOR
-};
-
-struct Instruction {
-    InstructionType type;
-    std::vector<std::string> args;
-    std::vector<Instruction> nestedInstructions;
-    int repeatCount = 1;
-};
-
 struct Process {
     std::string name;
     int totalInstructions;
@@ -40,7 +24,7 @@ struct Process {
         char buf[100];
         std::strftime(buf, sizeof(buf), "%m/%d/%Y %I:%M:%S%p", std::localtime(&now));
         timestamp = buf;
-        }
+    }
 
     bool isFinished() const {
         return executedInstructions >= totalInstructions;
@@ -51,16 +35,11 @@ class CoreManager {
 public:
     CoreManager() {
         stop.store(false);
-        autoGenActive.reset(new std::atomic<bool>(false));
     }
 
     ~CoreManager() {
         stopScheduler();
-        stopAutoGenerate();
     }
-
-    CoreManager(const CoreManager&) = delete;
-    CoreManager& operator=(const CoreManager&) = delete;
 
     void configure(int coresCount, const std::string& schedType, int quantum, int batchFreq, int minI, int maxI, int delay) {
         numCores = coresCount;
@@ -76,21 +55,32 @@ public:
 
     void start() {
         stop = false;
+        cpuTicks = 0;
 
-        // If cores are not empty, clear them (after making sure they’re done)
         for (auto& t : cores) {
-            if (t.joinable()) {
-                t.join();
-            }
+            if (t.joinable()) t.join();
         }
         cores.clear();
 
-        // Create fresh worker threads
         for (int i = 0; i < numCores; ++i) {
             cores.emplace_back(&CoreManager::coreWorker, this, i);
         }
+
+        tickThread = std::thread(&CoreManager::tickLoop, this);
     }
 
+    void stopScheduler() {
+        stop = true;
+        queueCond.notify_all();
+
+        for (auto& t : cores) {
+            if (t.joinable()) t.join();
+        }
+
+        if (tickThread.joinable()) tickThread.join();
+
+        std::cout << "\n[INFO] Scheduler stopped. All cores joined.\n\n";
+    }
 
     void addProcess(Process* proc) {
         std::lock_guard<std::mutex> lock(queueMutex);
@@ -98,38 +88,6 @@ public:
         allProcesses.push_back(proc);
         queueCond.notify_one();
     }
-
-    void startAutoGenerate() {
-        autoGenActive->store(true);
-        autoGenThread = std::thread([this]() {
-            std::uniform_int_distribution<int> insDist(minIns, maxIns);
-            while (autoGenActive->load()) {
-                std::this_thread::sleep_for(std::chrono::seconds(batchProcessFreq));
-                std::string pname = "auto_proc_" + std::to_string(processCounter++);
-                addProcess(new Process(pname, insDist(rng)));
-            }
-        });
-    }
-
-    void stopAutoGenerate() {
-        autoGenActive->store(false);
-        if (autoGenThread.joinable()) autoGenThread.join();
-    }
-
-    void stopScheduler() {
-        stop = true;
-        queueCond.notify_all(); // wake up any waiting threads
-
-        for (auto& t : cores) {
-            if (t.joinable()) {
-                t.join();  // wait for each thread to end
-            }
-        }
-        cores.clear(); // remove old threads
-
-        std::cout << "\n[INFO] Scheduler stopped. All cores joined.\n\n";
-    }
-
 
     void reportUtil() {
         std::cout << "\n=== CPU Utilization Report ===\n";
@@ -144,18 +102,18 @@ public:
         for (const auto& proc : allProcesses) {
             std::string status = proc->isFinished() ? "Finished" : (proc->assignedCore == -1 ? "Queued" : "Running");
             std::cout << proc->name << "  | " << status
-                    << "  | " << "Core " << proc->assignedCore
-                    << "  | " << proc->executedInstructions << " / " << proc->totalInstructions
-                    << "  | " << proc->timestamp << "\n";
+                      << "  | Core " << proc->assignedCore
+                      << "  | " << proc->executedInstructions << " / " << proc->totalInstructions
+                      << "  | " << proc->timestamp << "\n";
         }
         std::cout << "\n------------------------\n\n";
     }
 
 private:
-    int numCores = 4;
+    int numCores = 2;
     std::string schedulerType = "fcfs";
     int quantumCycles = 1;
-    int batchProcessFreq = 1;
+    int batchProcessFreq = 5;
     int minIns = 10;
     int maxIns = 50;
     int delayPerExec = 0;
@@ -165,16 +123,29 @@ private:
     std::queue<Process*> readyQueue;
     std::mutex queueMutex;
     std::condition_variable queueCond;
-    std::atomic<bool> stop;
+    std::atomic<bool> stop{false};
+
     std::vector<int> coreInstructions;
     std::vector<Process*> allProcesses;
 
     std::default_random_engine rng{std::random_device{}()};
+    std::thread tickThread;
 
-    std::unique_ptr<std::atomic<bool>> autoGenActive;
-    std::thread autoGenThread;
+    int processCounter = 1;
+    int cpuTicks = 0;
 
-    int processCounter = 1;  
+    void tickLoop() {
+        while (!stop) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(delayPerExec));
+            cpuTicks++;
+
+            if (cpuTicks % batchProcessFreq == 0) {
+                std::string pname = "auto_proc_" + std::to_string(processCounter++);
+                std::uniform_int_distribution<int> insDist(minIns, maxIns);
+                addProcess(new Process(pname, insDist(rng)));
+            }
+        }
+    }
 
     void coreWorker(int coreId) {
         while (!stop) {

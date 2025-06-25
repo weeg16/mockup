@@ -29,8 +29,7 @@ int main() {
         }
         else if (command == "exit") {
             if (schedulerStarted) {
-                coreManager.stopAutoGenerate();
-                coreManager.stopScheduler();
+                coreManager.stopScheduler();  // Also stops ticks + threads
             }
             std::cout << "\nExiting...\n\n";
             isRunning = false;
@@ -72,7 +71,6 @@ int main() {
                 printHeader();
 
                 coreManager.start();              
-                coreManager.startAutoGenerate(); 
                 schedulerStarted = true;
             } else {
                 std::cout << "\n[WARN] Scheduler is already running.\n\n";
@@ -83,7 +81,6 @@ int main() {
         }
         else if (command == "scheduler-stop") {
             if (schedulerStarted) {
-                coreManager.stopAutoGenerate();
                 coreManager.stopScheduler();
                 schedulerStarted = false;
             } else {

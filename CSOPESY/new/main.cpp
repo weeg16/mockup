@@ -71,8 +71,8 @@ int main() {
                 clearScreen();
                 printHeader();
 
-                coreManager.start();              // Fresh thread workers
-                coreManager.startAutoGenerate();  // Start auto-process generator
+                coreManager.start();              
+                coreManager.startAutoGenerate(); 
                 schedulerStarted = true;
             } else {
                 std::cout << "\n[WARN] Scheduler is already running.\n\n";

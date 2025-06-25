@@ -97,7 +97,7 @@ public:
         autoGenThread = std::thread([this]() {
             std::uniform_int_distribution<int> insDist(minIns, maxIns);
             while (autoGenActive->load()) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(batchProcessFreq * 100));
+                std::this_thread::sleep_for(std::chrono::seconds(batchProcessFreq));
                 std::string pname = "auto_proc_" + std::to_string(processCounter++);
                 addProcess(new Process(pname, insDist(rng)));
             }

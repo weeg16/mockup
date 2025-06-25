@@ -5,6 +5,7 @@
 #include <iostream>
 #include <thread>
 #include <mutex>
+#include <ctime>
 #include <condition_variable>
 #include <queue>
 #include <vector>
@@ -31,9 +32,15 @@ struct Process {
     int totalInstructions;
     std::atomic<int> executedInstructions;
     int assignedCore = -1;
+    std::string timestamp;
 
     Process(const std::string& name, int totalIns)
-        : name(name), totalInstructions(totalIns), executedInstructions(0) {}
+        : name(name), totalInstructions(totalIns), executedInstructions(0) {
+        std::time_t now = std::time(nullptr);
+        char buf[100];
+        std::strftime(buf, sizeof(buf), "%m/%d/%Y %I:%M:%S%p", std::localtime(&now));
+        timestamp = buf;
+        }
 
     bool isFinished() const {
         return executedInstructions >= totalInstructions;
@@ -136,8 +143,10 @@ public:
         std::cout << "\n--- Process Status ---\n\n";
         for (const auto& proc : allProcesses) {
             std::string status = proc->isFinished() ? "Finished" : (proc->assignedCore == -1 ? "Queued" : "Running");
-            std::cout << proc->name << "  | " << status << "  | " << "Core " << proc->assignedCore
-                      << "  | " << proc->executedInstructions << " / " << proc->totalInstructions << "\n";
+            std::cout << proc->name << "  | " << status
+                    << "  | " << "Core " << proc->assignedCore
+                    << "  | " << proc->executedInstructions << " / " << proc->totalInstructions
+                    << "  | " << proc->timestamp << "\n";
         }
         std::cout << "\n------------------------\n\n";
     }
@@ -165,7 +174,7 @@ private:
     std::unique_ptr<std::atomic<bool>> autoGenActive;
     std::thread autoGenThread;
 
-    int processCounter = 1;  // 🔧 Ensures unique process names across multiple starts
+    int processCounter = 1;  
 
     void coreWorker(int coreId) {
         while (!stop) {

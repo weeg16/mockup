@@ -1,5 +1,6 @@
 #include "core_manager.h"
 #include "process.h"
+#include "util.h"
 
 #include <iostream>
 #include <random>
@@ -58,6 +59,9 @@ void CoreManager::stopScheduler() {
     if (tickThread.joinable()) tickThread.join();
 
     std::cout << "\n[INFO] Scheduler stopped. All cores joined.\n\n";
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+                clearScreen();
+                printHeader();
 }
 
 void CoreManager::addProcess(Process* proc) {
@@ -95,7 +99,7 @@ void CoreManager::tickLoop() {
         if (cpuTicks % batchProcessFreq == 0) {
             std::string pname = "auto_proc_" + std::to_string(processCounter++);
             std::uniform_int_distribution<int> insDist(minIns, maxIns);
-            addProcess(new Process(pname, insDist(rng)));
+            addProcess(new Process(pname, processCounter++, insDist(rng)));
         }
     }
 }
@@ -142,4 +146,11 @@ void CoreManager::coreWorker(int coreId) {
 
         coreBusy[coreId] = false;
     }
+}
+
+Process* CoreManager::getProcessByName(const std::string& name) {
+    for (auto* p : allProcesses) {
+        if (p->name == name) return p;
+    }
+    return nullptr;
 }

@@ -30,7 +30,7 @@ int main() {
         }
         else if (command == "exit") {
             if (schedulerStarted) {
-                coreManager.stopScheduler();  // Also stops ticks + threads
+                coreManager.stopScheduler();  
             }
             std::cout << "\nExiting...\n\n";
             isRunning = false;
@@ -62,6 +62,9 @@ int main() {
         else if (command == "scheduler-start") {
             if (!isInitialized) {
                 std::cout << "\n[WARN] Please run 'initialize' first.\n\n";
+                std::this_thread::sleep_for(std::chrono::seconds(2));
+                clearScreen();
+                printHeader();
                 continue;
             }
 
@@ -85,7 +88,7 @@ int main() {
                 coreManager.stopScheduler();
                 schedulerStarted = false;
             } else {
-                std::cout << "[WARN] Scheduler is not running.\n";
+                std::cout << "\n[WARN] Scheduler is not running.\n";
                 std::this_thread::sleep_for(std::chrono::seconds(2));
                 clearScreen();
                 printHeader();
@@ -112,6 +115,30 @@ int main() {
                 printHeader();
             } else {
                 std::cout << "\n[WARN] Scheduler is not running.\n\n";
+                std::this_thread::sleep_for(std::chrono::seconds(2));
+                clearScreen();
+                printHeader();
+            }
+        }
+        else if (command.rfind("screen -s ", 0) == 0 && schedulerStarted) {
+            std::string pname = command.substr(10);
+            Process* proc = coreManager.getProcessByName(pname);
+            if (proc && !proc->isFinished()) {
+                enterProcessScreen(proc);
+            } else {
+                std::cout << "\nProcess " << pname << " not found or has finished.\n";
+                std::this_thread::sleep_for(std::chrono::seconds(2));
+                clearScreen();
+                printHeader();
+            }
+        }
+        else if (command.rfind("screen -r ", 0) == 0 && schedulerStarted) {
+            std::string pname = command.substr(10);
+            Process* proc = coreManager.getProcessByName(pname);
+            if (proc && !proc->isFinished()) {
+                enterProcessScreen(proc);
+            } else {
+                std::cout << "\nProcess " << pname << " not found or has finished.\n";
                 std::this_thread::sleep_for(std::chrono::seconds(2));
                 clearScreen();
                 printHeader();

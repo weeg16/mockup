@@ -12,6 +12,7 @@ class CoreManager {
 public:
     CoreManager();
     ~CoreManager();
+    Process* getProcessByName(const std::string& name);
 
     void configure(int coresCount, const std::string& schedType, int quantum, int batchFreq, int minI, int maxI, int delay);
     void start();

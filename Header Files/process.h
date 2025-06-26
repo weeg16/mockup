@@ -10,13 +10,14 @@ enum class InstructionType {
     DECLARE,
     ADD,
     SUBTRACT,
-    SLEEP
-    // Add FOR later if you want
+    SLEEP,
+    FOR
 };
 
 struct Instruction {
     InstructionType type;
     std::vector<std::string> args;
+    std::vector<Instruction> block;
 };
 
 
@@ -39,6 +40,11 @@ public:
     std::unordered_map<std::string, uint16_t> variables;
 
     bool executeNextInstruction();
+
+    int sleepTicks = 0;
+    std::vector<std::tuple<size_t, size_t, int>> forStack; 
+
+    void executeSingleInstruction(const Instruction& ins);
 };
 
 void enterProcessScreen(Process* proc);

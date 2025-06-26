@@ -25,17 +25,28 @@ Process::Process(const std::string& name, int id, int totalIns)
         instructions.push_back({InstructionType::DECLARE, {v, std::to_string(value)}});
     }
     for (int i = 3; i < totalInstructions; ++i) { // Start from 3 because first 3 are DECLARE
-        int r = rand() % 5; // 0=PRINT, 1=DECLARE, 2=ADD, 3=SUBTRACT, 4=SLEEP
-        if (r == 0) {
-            instructions.push_back({InstructionType::PRINT, {"Hello world from " + name + "!"}});
-        } else if (r == 1) {
-            instructions.push_back({InstructionType::DECLARE, {vars[rand() % vars.size()], std::to_string(rand() % 20)}});
-        } else if (r == 2) {
-            instructions.push_back({InstructionType::ADD, {vars[0], vars[1], vars[2]}});
-        } else if (r == 3) {
-            instructions.push_back({InstructionType::SUBTRACT, {vars[0], vars[1], vars[2]}});
-        } else if (r == 4) {
-            instructions.push_back({InstructionType::SLEEP, {std::to_string((rand() % 3) + 1)}});
+        int r = rand() % 6; // 0=PRINT, 1=DECLARE, 2=ADD, 3=SUBTRACT, 4=SLEEP, 5=FOR
+        if (r == 5) {
+            int repeats = (rand() % 3) + 2; // Repeat 2-4 times
+            std::vector<Instruction> block;
+            // FOR simplicity, put 1-2 basic instructions in the block (no nesting yet)
+            int blockLen = (rand() % 2) + 1;
+            for (int b = 0; b < blockLen; ++b) {
+                int t = rand() % 5; // Exclude FOR from block to avoid nesting
+                if (t == 0)
+                    block.push_back({InstructionType::PRINT, {"Hello from FOR in " + name}});
+                else if (t == 1)
+                    block.push_back({InstructionType::DECLARE, {"x", std::to_string(rand() % 10)}});
+                else if (t == 2)
+                    block.push_back({InstructionType::ADD, {"x", "y", "z"}});
+                else if (t == 3)
+                    block.push_back({InstructionType::SUBTRACT, {"x", "y", "z"}});
+                else if (t == 4)
+                    block.push_back({InstructionType::SLEEP, {std::to_string((rand() % 3) + 1)}});
+            }
+            Instruction forInstr = {InstructionType::FOR, {std::to_string(repeats)}, block};
+            instructions.push_back(forInstr);
+            continue;
         }
     }
 
@@ -180,9 +191,7 @@ bool processIsActive(const Process* proc) {
     return proc && !proc->isFinished();
 }
 
-bool Process::executeNextInstruction() {
-    if (instructionPointer >= instructions.size()) return false;
-    Instruction& ins = instructions[instructionPointer];
+void Process::executeSingleInstruction(const Instruction& ins) {
     switch (ins.type) {
         case InstructionType::PRINT:
             logPrint(ins.args[0]);
@@ -192,24 +201,10 @@ bool Process::executeNextInstruction() {
             break;
         case InstructionType::ADD: {
             uint16_t v2 = 0, v3 = 0;
-            if (variables.count(ins.args[1])) {
-                v2 = variables[ins.args[1]];
-            } else {
-                try {
-                    v2 = static_cast<uint16_t>(std::stoi(ins.args[1]));
-                } catch (...) {
-                    v2 = 0;
-                }
-            }
-            if (variables.count(ins.args[2])) {
-                v3 = variables[ins.args[2]];
-            } else {
-                try {
-                    v3 = static_cast<uint16_t>(std::stoi(ins.args[2]));
-                } catch (...) {
-                    v3 = 0;
-                }
-            }
+            if (variables.count(ins.args[1])) v2 = variables[ins.args[1]];
+            else try { v2 = static_cast<uint16_t>(std::stoi(ins.args[1])); } catch (...) { v2 = 0; }
+            if (variables.count(ins.args[2])) v3 = variables[ins.args[2]];
+            else try { v3 = static_cast<uint16_t>(std::stoi(ins.args[2])); } catch (...) { v3 = 0; }
             uint32_t sum = v2 + v3;
             if (sum > 65535) sum = 65535;
             variables[ins.args[0]] = static_cast<uint16_t>(sum);
@@ -217,34 +212,65 @@ bool Process::executeNextInstruction() {
         }
         case InstructionType::SUBTRACT: {
             uint16_t v2 = 0, v3 = 0;
-            if (variables.count(ins.args[1])) {
-                v2 = variables[ins.args[1]];
-            } else {
-                try {
-                    v2 = static_cast<uint16_t>(std::stoi(ins.args[1]));
-                } catch (...) {
-                    v2 = 0;
-                }
-            }
-            if (variables.count(ins.args[2])) {
-                v3 = variables[ins.args[2]];
-            } else {
-                try {
-                    v3 = static_cast<uint16_t>(std::stoi(ins.args[2]));
-                } catch (...) {
-                    v3 = 0;
-                }
-            }
+            if (variables.count(ins.args[1])) v2 = variables[ins.args[1]];
+            else try { v2 = static_cast<uint16_t>(std::stoi(ins.args[1])); } catch (...) { v2 = 0; }
+            if (variables.count(ins.args[2])) v3 = variables[ins.args[2]];
+            else try { v3 = static_cast<uint16_t>(std::stoi(ins.args[2])); } catch (...) { v3 = 0; }
             int diff = v2 - v3;
             if (diff < 0) diff = 0;
             variables[ins.args[0]] = static_cast<uint16_t>(diff);
             break;
         }
         case InstructionType::SLEEP:
-            // Optional: implement sleep handling in scheduler
+            sleepTicks = std::stoi(ins.args[0]);
             break;
+        default: break;
     }
-    instructionPointer++;
-    executedInstructions++;
-    return true;
+}
+
+bool Process::executeNextInstruction() {
+    if (sleepTicks > 0) {
+        --sleepTicks;
+        return true;
+    }
+
+    // Check if inside a FOR loop
+    if (!forStack.empty()) {
+        // Use std::get for C++11 compatibility
+        auto& tup = forStack.back();
+        size_t& instrIdx = std::get<0>(tup);
+        size_t& blockPtr = std::get<1>(tup);
+        int& left = std::get<2>(tup);
+        Instruction& forIns = instructions[instrIdx];
+        if (blockPtr < forIns.block.size()) {
+            Instruction& curr = forIns.block[blockPtr];
+            executeSingleInstruction(curr);
+            ++blockPtr;
+            ++executedInstructions;
+        } else if (left > 1) {
+            blockPtr = 0;
+            --left;
+        } else {
+            // Finished all repeats of FOR
+            forStack.pop_back();
+            ++instructionPointer;
+            ++executedInstructions;
+        }
+        return true;
+    }
+
+    // Normal instruction flow
+    if (instructionPointer >= instructions.size()) return false;
+    Instruction& ins = instructions[instructionPointer];
+
+    if (ins.type == InstructionType::FOR) {
+        int repeats = std::stoi(ins.args[0]);
+        forStack.push_back(std::make_tuple(instructionPointer, 0, repeats));
+        return true;
+    } else {
+        executeSingleInstruction(ins);
+        ++instructionPointer;
+        ++executedInstructions;
+        return true;
+    }
 }

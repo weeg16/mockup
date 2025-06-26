@@ -100,6 +100,7 @@ void CoreManager::tickLoop() {
             std::string pname = "auto_proc_" + std::to_string(processCounter++);
             std::uniform_int_distribution<int> insDist(minIns, maxIns);
             addProcess(new Process(pname, processCounter++, insDist(rng)));
+            processCounter++;
         }
     }
 }
@@ -124,14 +125,14 @@ void CoreManager::coreWorker(int coreId) {
 
         if (schedulerType == "fcfs") {
             while (!proc->isFinished()) {
-                ++proc->executedInstructions;
+                proc->executeNextInstruction();
                 ++coreInstructions[coreId];
                 std::this_thread::sleep_for(std::chrono::milliseconds(delayPerExec));
             }
         } else if (schedulerType == "rr") {
             int cycles = 0;
             while (!proc->isFinished() && cycles < quantumCycles) {
-                ++proc->executedInstructions;
+                proc->executeNextInstruction();
                 ++coreInstructions[coreId];
                 ++cycles;
                 std::this_thread::sleep_for(std::chrono::milliseconds(delayPerExec));

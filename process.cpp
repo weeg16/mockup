@@ -19,10 +19,36 @@ Process::Process(const std::string& name, int id, int totalIns)
     std::strftime(buf, sizeof(buf), "%m/%d/%Y %I:%M:%S%p", std::localtime(&now));
     timestamp = buf;
 
-    // TEMP: Add logs for testing
-    logPrint("Hello world from " + name + "!");
-    logPrint("Test message 1 from " + name);
-    logPrint("Another log from " + name);
+    std::vector<std::string> vars = {"x", "y", "z"};
+    for (const auto& v : vars) {
+        int value = rand() % 20;
+        instructions.push_back({InstructionType::DECLARE, {v, std::to_string(value)}});
+    }
+    for (int i = 3; i < totalInstructions; ++i) { // Start from 3 because first 3 are DECLARE
+        int r = rand() % 5; // 0=PRINT, 1=DECLARE, 2=ADD, 3=SUBTRACT, 4=SLEEP
+        if (r == 0) {
+            instructions.push_back({InstructionType::PRINT, {"Hello world from " + name + "!"}});
+        } else if (r == 1) {
+            instructions.push_back({InstructionType::DECLARE, {vars[rand() % vars.size()], std::to_string(rand() % 20)}});
+        } else if (r == 2) {
+            instructions.push_back({InstructionType::ADD, {vars[0], vars[1], vars[2]}});
+        } else if (r == 3) {
+            instructions.push_back({InstructionType::SUBTRACT, {vars[0], vars[1], vars[2]}});
+        } else if (r == 4) {
+            instructions.push_back({InstructionType::SLEEP, {std::to_string((rand() % 3) + 1)}});
+        }
+    }
+
+    // TEMP: To see instructions for each process at creation
+
+    // std::cout << name << " has " << instructions.size() << " instructions:\n";
+    // for (const auto& ins : instructions) {
+    //     if (ins.type == InstructionType::PRINT) std::cout << "PRINT: " << ins.args[0] << "\n";
+    //     else if (ins.type == InstructionType::DECLARE) std::cout << "DECLARE " << ins.args[0] << "\n";
+    //     else if (ins.type == InstructionType::ADD) std::cout << "ADD\n";
+    //     else if (ins.type == InstructionType::SUBTRACT) std::cout << "SUBTRACT\n";
+    //     else if (ins.type == InstructionType::SLEEP) std::cout << "SLEEP\n";
+    // }
 }
 
 bool Process::isFinished() const {
@@ -39,6 +65,12 @@ void Process::logPrint(const std::string& message) {
 void printProcessInfo(const Process* proc) {
     std::cout << "Process name: " << proc->name << "\n";
     std::cout << "ID: " << ORANGE << proc->id << RESET << "\n";
+
+    std::cout << "Variables: ";
+    for (const auto& pair : proc->variables) {
+        std::cout << pair.first << "=" << pair.second << " ";
+    }
+    std::cout << "\n";
 }
 
 void printProcessLogsAndDetails(const Process* proc) {
@@ -111,7 +143,6 @@ void printProcessLogsAndDetails(const Process* proc) {
     std::cout << "Lines of code: " << ORANGE << proc->totalInstructions << RESET << "\n";
 }
 
-
 void enterProcessScreen(Process* proc) {
     clearScreen();
     printHeader();
@@ -145,7 +176,75 @@ void enterProcessScreen(Process* proc) {
     }
 }
 
-
 bool processIsActive(const Process* proc) {
     return proc && !proc->isFinished();
+}
+
+bool Process::executeNextInstruction() {
+    if (instructionPointer >= instructions.size()) return false;
+    Instruction& ins = instructions[instructionPointer];
+    switch (ins.type) {
+        case InstructionType::PRINT:
+            logPrint(ins.args[0]);
+            break;
+        case InstructionType::DECLARE:
+            variables[ins.args[0]] = static_cast<uint16_t>(std::stoi(ins.args[1]));
+            break;
+        case InstructionType::ADD: {
+            uint16_t v2 = 0, v3 = 0;
+            if (variables.count(ins.args[1])) {
+                v2 = variables[ins.args[1]];
+            } else {
+                try {
+                    v2 = static_cast<uint16_t>(std::stoi(ins.args[1]));
+                } catch (...) {
+                    v2 = 0;
+                }
+            }
+            if (variables.count(ins.args[2])) {
+                v3 = variables[ins.args[2]];
+            } else {
+                try {
+                    v3 = static_cast<uint16_t>(std::stoi(ins.args[2]));
+                } catch (...) {
+                    v3 = 0;
+                }
+            }
+            uint32_t sum = v2 + v3;
+            if (sum > 65535) sum = 65535;
+            variables[ins.args[0]] = static_cast<uint16_t>(sum);
+            break;
+        }
+        case InstructionType::SUBTRACT: {
+            uint16_t v2 = 0, v3 = 0;
+            if (variables.count(ins.args[1])) {
+                v2 = variables[ins.args[1]];
+            } else {
+                try {
+                    v2 = static_cast<uint16_t>(std::stoi(ins.args[1]));
+                } catch (...) {
+                    v2 = 0;
+                }
+            }
+            if (variables.count(ins.args[2])) {
+                v3 = variables[ins.args[2]];
+            } else {
+                try {
+                    v3 = static_cast<uint16_t>(std::stoi(ins.args[2]));
+                } catch (...) {
+                    v3 = 0;
+                }
+            }
+            int diff = v2 - v3;
+            if (diff < 0) diff = 0;
+            variables[ins.args[0]] = static_cast<uint16_t>(diff);
+            break;
+        }
+        case InstructionType::SLEEP:
+            // Optional: implement sleep handling in scheduler
+            break;
+    }
+    instructionPointer++;
+    executedInstructions++;
+    return true;
 }

@@ -3,6 +3,22 @@
 #include <atomic>
 #include <ctime>
 #include <vector>
+#include <unordered_map>
+
+enum class InstructionType {
+    PRINT,
+    DECLARE,
+    ADD,
+    SUBTRACT,
+    SLEEP
+    // Add FOR later if you want
+};
+
+struct Instruction {
+    InstructionType type;
+    std::vector<std::string> args;
+};
+
 
 class Process {
 public:
@@ -17,6 +33,12 @@ public:
     Process(const std::string& name, int id, int totalIns);
     bool isFinished() const;
     void logPrint(const std::string& message);
+
+    std::vector<Instruction> instructions;
+    size_t instructionPointer = 0;
+    std::unordered_map<std::string, uint16_t> variables;
+
+    bool executeNextInstruction();
 };
 
 void enterProcessScreen(Process* proc);

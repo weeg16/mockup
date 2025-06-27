@@ -37,6 +37,7 @@ public:
     int assignedCore;
     std::string timestamp;
     std::vector<std::string> logs;
+    int tickWaitCounter = 0;
 
     Process(const std::string& name, int id, int totalIns);
     bool isFinished() const;

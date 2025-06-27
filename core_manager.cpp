@@ -107,13 +107,17 @@ void CoreManager::listProcessStatus() {
 
 void CoreManager::tickLoop() {
     while (!stop) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(delayPerExec));
-        cpuTicks++;
+        // 1. Wall-time delay for each tick
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));  // fixed tick interval (100ms or whatever you want)
+        cpuTicks++;  // 2. Increment the global tick counter
 
+        // 3. Spawn new process every batchProcessFreq ticks
         if (cpuTicks % batchProcessFreq == 0) {
-            std::string pname = "process" + std::to_string(processCounter++);
+            std::string pname = "process" + std::to_string(processCounter);
             std::uniform_int_distribution<int> insDist(minIns, maxIns);
-            addProcess(new Process(pname, processCounter++, insDist(rng)));
+            int numIns = insDist(rng);
+            Process* proc = new Process(pname, processCounter++, numIns);
+            addProcess(proc);
         }
     }
 }

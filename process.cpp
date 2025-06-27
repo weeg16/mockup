@@ -14,6 +14,7 @@ variable management, logging, and process screen behavior.
 #include <thread>  
 #include <chrono>     
 #include <sstream>
+#include <vector>
 
 
 

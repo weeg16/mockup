@@ -41,7 +41,7 @@ Process::Process(const std::string& name, int id, int totalIns)
             for (int b = 0; b < blockLen; ++b) {
                 int t = rand() % 5; // Exclude FOR from block to avoid nesting
                 if (t == 0)
-                    block.push_back({InstructionType::PRINT, {"Hello from FOR in " + name}});
+                    block.push_back({InstructionType::PRINT, {"Hello world from " + name + "!"}});
                 else if (t == 1)
                     block.push_back({InstructionType::DECLARE, {"x", std::to_string(rand() % 10)}});
                 else if (t == 2)

@@ -107,18 +107,17 @@ void CoreManager::listProcessStatus() {
 
 void CoreManager::tickLoop() {
     while (!stop) {
-        // 1. Wall-time delay for each tick
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));  // fixed tick interval (100ms or whatever you want)
-        cpuTicks++;  // 2. Increment the global tick counter
+        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // 1 tick
+        cpuTicks++;
 
-        // 3. Spawn new process every batchProcessFreq ticks
         if (cpuTicks % batchProcessFreq == 0) {
             std::string pname = "process" + std::to_string(processCounter);
             std::uniform_int_distribution<int> insDist(minIns, maxIns);
             int numIns = insDist(rng);
-            Process* proc = new Process(pname, processCounter++, numIns);
-            addProcess(proc);
+            addProcess(new Process(pname, processCounter++, numIns));
         }
+
+        queueCond.notify_all(); 
     }
 }
 
@@ -140,26 +139,21 @@ void CoreManager::coreWorker(int coreId) {
             proc->assignedCore = coreId;
         }
 
-        if (schedulerType == "fcfs") {
-            while (!proc->isFinished()) {
-                proc->executeNextInstruction();
-                ++coreInstructions[coreId];
-                std::this_thread::sleep_for(std::chrono::milliseconds(delayPerExec));
-            }
-        } else if (schedulerType == "rr") {
-            int cycles = 0;
-            while (!proc->isFinished() && cycles < quantumCycles) {
-                proc->executeNextInstruction();
-                ++coreInstructions[coreId];
-                ++cycles;
-                std::this_thread::sleep_for(std::chrono::milliseconds(delayPerExec));
-            }
+        int cycles = 0;
+        while (!proc->isFinished() && (schedulerType == "fcfs" || cycles < quantumCycles)) {
+            // Simulate execution delay per instruction
+            std::this_thread::sleep_for(std::chrono::milliseconds(delayPerExec));
 
-            if (!proc->isFinished()) {
-                std::lock_guard<std::mutex> lock(queueMutex);
-                readyQueue.push(proc);
-                queueCond.notify_one();
-            }
+            proc->executeNextInstruction();
+            ++coreInstructions[coreId];
+            ++cycles;
+        }
+
+        // Requeue if RR quantum expired and process is not yet finished
+        if (schedulerType == "rr" && !proc->isFinished()) {
+            std::lock_guard<std::mutex> lock(queueMutex);
+            readyQueue.push(proc);
+            queueCond.notify_one();
         }
 
         coreBusy[coreId] = false;

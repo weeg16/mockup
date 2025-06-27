@@ -1,3 +1,10 @@
+/* 
+util.cpp
+
+Implements miscellaneous utility functions (timestamp generation, color output, 
+input handling) used throughout the OS Emulator project.
+*/
+
 #include "util.h"
 #include <iostream>
 #include <chrono>

@@ -1,3 +1,10 @@
+/* 
+screen.cpp
+
+Implements screen-related user interface functions, including printing headers, 
+clearing the screen, and handling the main and process-specific CLI menus.
+*/
+
 #include "screen.h"
 #include "util.h"
 #include <iostream>

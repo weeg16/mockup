@@ -1,3 +1,10 @@
+/* 
+util.h
+
+Declares utility functions for console manipulation, timestamp generation,
+and other helper utilities.
+*/
+
 #pragma once
 
 #include <string>

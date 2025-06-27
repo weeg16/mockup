@@ -1,3 +1,9 @@
+/* 
+config.h
+
+Declares the Config struct and function prototypes for config file parsing and validation.
+*/
+
 #pragma once
 
 #include <string>

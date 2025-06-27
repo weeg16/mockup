@@ -1,3 +1,10 @@
+/* 
+process.cpp
+
+Implements the Process class, per-process instruction logic (PRINT, DECLARE, ADD, SUBTRACT, SLEEP, FOR),
+variable management, logging, and process screen behavior.
+*/
+
 #include "process.h"
 #include "util.h"
 

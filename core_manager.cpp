@@ -1,3 +1,10 @@
+/* 
+core_manager.cpp
+
+Implements the CoreManager class, which manages CPU cores, process scheduling (FCFS/RR),
+process queues, process creation, and overall scheduler operation.
+*/
+
 #include "core_manager.h"
 #include "process.h"
 #include "util.h"
@@ -17,6 +24,10 @@ CoreManager::CoreManager() {
 }
 
 CoreManager::~CoreManager() {
+    for (auto* proc : allProcesses) {
+        delete proc;
+    }
+
     stopScheduler();
 }
 

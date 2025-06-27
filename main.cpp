@@ -1,3 +1,10 @@
+/* 
+main.cpp
+
+Entry point and main loop for the OS Emulator. Handles command-line user interface,
+menu logic, command parsing, and overall program flow.
+*/
+
 #include "config.h"
 #include "util.h"
 #include "screen.h"

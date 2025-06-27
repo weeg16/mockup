@@ -1,3 +1,10 @@
+/* 
+process.h
+
+Declares the Process class, instruction data structures, and function signatures for
+process state, instruction execution, and process screen interaction.
+*/
+
 #pragma once
 #include <string>
 #include <atomic>

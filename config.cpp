@@ -1,3 +1,10 @@
+/* 
+config.cpp
+
+Implements configuration file parsing for loading scheduler and process settings
+from config.txt into a Config struct.
+*/
+
 #include "config.h"
 #include <algorithm>
 #include <fstream>

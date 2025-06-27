@@ -1,3 +1,10 @@
+/* 
+screen.h
+
+Declares user interface utility functions for screen management, header printing,
+and console interactions used throughout the OS Emulator.
+*/
+
 #pragma once
 
 #include <string>

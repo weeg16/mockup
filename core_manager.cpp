@@ -24,11 +24,10 @@ CoreManager::CoreManager() {
 }
 
 CoreManager::~CoreManager() {
+    stopScheduler();
     for (auto* proc : allProcesses) {
         delete proc;
     }
-
-    stopScheduler();
 }
 
 void CoreManager::configure(int coresCount, const std::string& schedType, int quantum, int batchFreq, int minI, int maxI, int delay) {

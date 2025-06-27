@@ -60,10 +60,6 @@ void printProcessInfo(const Process* proc) {
     std::cout << "Process name: " << proc->name << "\n";
     std::cout << "ID: " << ORANGE << proc->id << RESET << "\n";
 
-    std::cout << "Variables: ";
-    for (const auto& pair : proc->variables) {
-        std::cout << pair.first << "=" << pair.second << " ";
-    }
     std::cout << "\n";
 }
 
@@ -87,6 +83,10 @@ void printProcessLogsAndDetails(const Process* proc) {
 }
 
 void enterProcessScreen(Process* proc) {
+    // Add screen to map (if not already present)
+    // if (screens.count(proc->name) == 0) {
+    //     screens[proc->name] = ConsoleScreen{ proc->name, "", getCurrentTimestamp() };
+    // }
     clearScreen();
     printHeader();
     std::cout << "[Attached to process: " << proc->name << "]\n";
@@ -97,6 +97,7 @@ void enterProcessScreen(Process* proc) {
         std::getline(std::cin, input);
 
         if (input == "exit") {
+            // screens.erase(proc->name);
             clearScreen();
             printHeader();
             break;
@@ -109,6 +110,8 @@ void enterProcessScreen(Process* proc) {
             if (proc->isFinished()) {
                 std::cout << "\nProcess finished. Exiting screen in 2 seconds...\n";
                 std::this_thread::sleep_for(std::chrono::seconds(2));
+                // Remove from map when process finishes
+                // screens.erase(proc->name);
                 clearScreen();
                 printHeader();
                 break;
@@ -118,3 +121,7 @@ void enterProcessScreen(Process* proc) {
         }
     }
 }
+
+// bool screenExists(const std::string& name) {
+//     return screens.count(name) > 0;
+// }

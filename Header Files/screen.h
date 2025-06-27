@@ -26,3 +26,4 @@ extern std::unordered_map<std::string, ConsoleScreen> screens;
 void createScreen(const std::string& name);
 void restoreScreen(const std::string& name);
 void listScreens();
+bool screenExists(const std::string& name);

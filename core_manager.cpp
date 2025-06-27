@@ -111,7 +111,7 @@ void CoreManager::tickLoop() {
         cpuTicks++;
 
         if (cpuTicks % batchProcessFreq == 0) {
-            std::string pname = "auto_proc_" + std::to_string(processCounter++);
+            std::string pname = "process" + std::to_string(processCounter++);
             std::uniform_int_distribution<int> insDist(minIns, maxIns);
             addProcess(new Process(pname, processCounter++, insDist(rng)));
         }

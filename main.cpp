@@ -107,7 +107,7 @@ int main() {
                 std::ofstream file("csopesy-log.txt");
                 coreManager.printProcessSummary(file, false);
                 file.close();
-                std::cout << "Report generated at C:/csopesy-log.txt!\n";
+                std::cout << "\n[INFO] Report generated at  csopesy-log.txt!\n";
                 std::this_thread::sleep_for(std::chrono::seconds(2));
                 clearScreen();
                 printHeader();
@@ -135,7 +135,14 @@ int main() {
             std::string pname = command.substr(10);
             Process* proc = coreManager.getProcessByName(pname);
             if (proc && !proc->isFinished()) {
-                enterProcessScreen(proc);
+                // if (screens.find(pname) != screens.end()) {
+                //     std::cout << "\n[WARN] Screen for process '" << pname << "' already exists. Use 'screen -r " << pname << "' to reattach.\n";
+                //     std::this_thread::sleep_for(std::chrono::seconds(2));
+                //     clearScreen();
+                //     printHeader();
+                // } else {
+                    enterProcessScreen(proc);
+                // }
             } else {
                 std::cout << "\nProcess " << pname << " not found or has finished.\n";
                 std::this_thread::sleep_for(std::chrono::seconds(2));

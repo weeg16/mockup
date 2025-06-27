@@ -29,15 +29,15 @@ Process::Process(const std::string& name, int id, int totalIns)
         int value = rand() % 20;
         instructions.push_back({InstructionType::DECLARE, {v, std::to_string(value)}});
     }
-    for (int i = 3; i < totalInstructions; ++i) { // Start from 3 because first 3 are DECLARE
-        int r = rand() % 6; // 0=PRINT, 1=DECLARE, 2=ADD, 3=SUBTRACT, 4=SLEEP, 5=FOR
+    for (int i = 3; i < totalInstructions; ++i) {
+        int r = rand() % 6;
         if (r == 5) {
-            int repeats = (rand() % 3) + 2; // Repeat 2-4 times
+            // FOR block logic...
+            int repeats = (rand() % 3) + 2;
             std::vector<Instruction> block;
-            // FOR simplicity, put 1-2 basic instructions in the block (no nesting yet)
             int blockLen = (rand() % 2) + 1;
             for (int b = 0; b < blockLen; ++b) {
-                int t = rand() % 5; // Exclude FOR from block to avoid nesting
+                int t = rand() % 5;
                 if (t == 0)
                     block.push_back({InstructionType::PRINT, {"Hello world from " + name + "!"}});
                 else if (t == 1)
@@ -51,12 +51,27 @@ Process::Process(const std::string& name, int id, int totalIns)
             }
             Instruction forInstr = {InstructionType::FOR, {std::to_string(repeats)}, block};
             instructions.push_back(forInstr);
-            continue;
+            continue; // Skip the rest and go to next i
+        }
+        // These are for r = 0 to 4, if not FOR
+        else if (r == 0) {
+            instructions.push_back({InstructionType::PRINT, {"Hello world from " + name + "!"}});
+        }
+        else if (r == 1) {
+            instructions.push_back({InstructionType::DECLARE, {"x", std::to_string(rand() % 10)}});
+        }
+        else if (r == 2) {
+            instructions.push_back({InstructionType::ADD, {"x", "y", "z"}});
+        }
+        else if (r == 3) {
+            instructions.push_back({InstructionType::SUBTRACT, {"x", "y", "z"}});
+        }
+        else if (r == 4) {
+            instructions.push_back({InstructionType::SLEEP, {std::to_string((rand() % 3) + 1)}});
         }
     }
 
     // TEMP: To see instructions for each process at creation
-
     // std::cout << name << " has " << instructions.size() << " instructions:\n";
     // for (const auto& ins : instructions) {
     //     if (ins.type == InstructionType::PRINT) std::cout << "PRINT: " << ins.args[0] << "\n";
@@ -66,6 +81,7 @@ Process::Process(const std::string& name, int id, int totalIns)
     //     else if (ins.type == InstructionType::SLEEP) std::cout << "SLEEP\n";
     // }
 }
+
 
 bool Process::isFinished() const {
     return executedInstructions >= totalInstructions;

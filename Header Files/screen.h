@@ -10,6 +10,11 @@ and console interactions used throughout the OS Emulator.
 #include <string>
 #include <unordered_map>
 
+class Process;
+void printProcessInfo(const Process* proc);
+void printProcessLogsAndDetails(const Process* proc);
+void enterProcessScreen(Process* proc);
+
 struct ConsoleScreen {
     std::string name;
     std::string currentLine;

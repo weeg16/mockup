@@ -14,3 +14,4 @@ std::string getCurrentTimestamp();
 void printHeader();
 void clearScreen();
 void drawScreen(const ConsoleScreen& screen);
+void printColoredTimestamp(std::ostream& out, const std::string& ts);

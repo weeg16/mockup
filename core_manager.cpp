@@ -18,6 +18,10 @@ process queues, process creation, and overall scheduler operation.
 #include <queue>
 #include <vector>
 #include <string>
+#include <fstream> 
+
+static const char* ORANGE = "\033[38;5;208m";
+static const char* RESET = "\033[0m";
 
 CoreManager::CoreManager() {
     stop.store(false);
@@ -110,7 +114,6 @@ void CoreManager::tickLoop() {
             std::string pname = "auto_proc_" + std::to_string(processCounter++);
             std::uniform_int_distribution<int> insDist(minIns, maxIns);
             addProcess(new Process(pname, processCounter++, insDist(rng)));
-            processCounter++;
         }
     }
 }
@@ -164,4 +167,51 @@ Process* CoreManager::getProcessByName(const std::string& name) {
         if (p->name == name) return p;
     }
     return nullptr;
+}
+
+void CoreManager::printProcessSummary(std::ostream& out, bool colorize) {
+    // 1. CPU utilization
+    int usedCores = 0;
+    for (bool b : coreBusy) if (b) ++usedCores;
+    int availableCores = numCores - usedCores;
+    int percent = (numCores > 0) ? int((usedCores * 100.0) / numCores + 0.5) : 0;
+
+    auto outc = [&](const std::string& s, const char* color = "") {
+        if (colorize && color) out << color << s << RESET;
+        else out << s;
+    };
+
+    out << "\nCPU utilization: ";
+    outc(std::to_string(percent) + "%", ORANGE);
+    out << "\nCores used: " << usedCores << "\nCores available: " << availableCores << "\n";
+    out << "\n----------------------------------------\n";
+
+    // 2. Running processes
+    out << "\nRunning processes:\n\n";
+    for (const auto& proc : allProcesses) {
+        if (!proc->isFinished()) {
+            out << proc->name << "  ";
+            printColoredTimestamp(out, proc->timestamp);
+            out << "  Core: ";
+            outc(std::to_string(proc->assignedCore), ORANGE);
+            out << "  ";
+            outc(std::to_string(proc->executedInstructions), ORANGE); 
+            out << " / ";
+            outc(std::to_string(proc->totalInstructions), ORANGE); 
+            out << "\n";
+        }
+    }
+    out << "\nFinished processes:\n\n";
+    for (const auto& proc : allProcesses) {
+        if (proc->isFinished()) {
+            out << proc->name << "  ";
+            printColoredTimestamp(out, proc->timestamp);
+            out << "  Finished  ";
+            outc(std::to_string(proc->totalInstructions), ORANGE);
+            out << " / ";
+            outc(std::to_string(proc->totalInstructions), ORANGE);
+            out << "\n";
+        }
+    }
+    out << "\n----------------------------------------\n\n";
 }

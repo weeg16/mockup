@@ -20,6 +20,7 @@ public:
     void addProcess(Process* proc);
     void reportUtil();
     void listProcessStatus();
+    void printProcessSummary(std::ostream& out, bool colorize);
 
 private:
     void tickLoop();

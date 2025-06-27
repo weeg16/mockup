@@ -14,6 +14,7 @@ menu logic, command parsing, and overall program flow.
 #include <iostream>
 #include <string>
 #include <thread>
+#include <fstream>
 
 CoreManager coreManager;
 bool schedulerStarted = false;
@@ -103,7 +104,10 @@ int main() {
         }
         else if (command == "report-util") {
             if (schedulerStarted) {
-                coreManager.reportUtil();
+                std::ofstream file("csopesy-log.txt");
+                coreManager.printProcessSummary(file, false);
+                file.close();
+                std::cout << "Report generated at C:/csopesy-log.txt!\n";
                 std::this_thread::sleep_for(std::chrono::seconds(2));
                 clearScreen();
                 printHeader();
@@ -116,10 +120,10 @@ int main() {
         }
         else if (command == "screen -ls") {
             if (schedulerStarted) {
-                coreManager.listProcessStatus();
-                std::this_thread::sleep_for(std::chrono::seconds(2));
-                clearScreen();
-                printHeader();
+                coreManager.printProcessSummary(std::cout, true);
+                // std::this_thread::sleep_for(std::chrono::seconds(2));
+                // clearScreen();
+                // printHeader();
             } else {
                 std::cout << "\n[WARN] Scheduler is not running.\n\n";
                 std::this_thread::sleep_for(std::chrono::seconds(2));

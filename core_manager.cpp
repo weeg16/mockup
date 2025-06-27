@@ -167,6 +167,14 @@ Process* CoreManager::getProcessByName(const std::string& name) {
     return nullptr;
 }
 
+Process* CoreManager::spawnNewNamedProcess(const std::string& name) {
+    std::uniform_int_distribution<int> dist(minIns, maxIns);
+    int numIns = dist(rng);
+    Process* proc = new Process(name, processCounter++, numIns);
+    addProcess(proc);
+    return proc;
+}
+
 void CoreManager::printProcessSummary(std::ostream& out, bool colorize) {
     // 1. CPU utilization
     int usedCores = 0;
@@ -212,4 +220,9 @@ void CoreManager::printProcessSummary(std::ostream& out, bool colorize) {
         }
     }
     out << "\n----------------------------------------\n\n";
+}
+
+int CoreManager::generateRandomInstructionCount() const {
+    std::uniform_int_distribution<int> dist(minIns, maxIns);
+    return dist(const_cast<std::default_random_engine&>(rng));
 }

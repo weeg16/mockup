@@ -21,6 +21,8 @@ public:
     void reportUtil();
     void listProcessStatus();
     void printProcessSummary(std::ostream& out, bool colorize);
+    int generateRandomInstructionCount() const;
+    Process* spawnNewNamedProcess(const std::string& name);
 
 private:
     void tickLoop();

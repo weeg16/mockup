@@ -133,21 +133,16 @@ int main() {
         }
         else if (command.rfind("screen -s ", 0) == 0 && schedulerStarted) {
             std::string pname = command.substr(10);
-            Process* proc = coreManager.getProcessByName(pname);
-            if (proc && !proc->isFinished()) {
-                // if (screens.find(pname) != screens.end()) {
-                //     std::cout << "\n[WARN] Screen for process '" << pname << "' already exists. Use 'screen -r " << pname << "' to reattach.\n";
-                //     std::this_thread::sleep_for(std::chrono::seconds(2));
-                //     clearScreen();
-                //     printHeader();
-                // } else {
-                    enterProcessScreen(proc);
-                // }
-            } else {
-                std::cout << "\nProcess " << pname << " not found or has finished.\n";
+            Process* existing = coreManager.getProcessByName(pname);
+
+            if (existing != nullptr) {
+                std::cout << "\n[ERROR] Process '" << pname << "' already exists. Use 'screen -r " << pname << "' to reattach.\n";
                 std::this_thread::sleep_for(std::chrono::seconds(2));
                 clearScreen();
                 printHeader();
+            } else {
+                Process* newProc = coreManager.spawnNewNamedProcess(pname);
+                enterProcessScreen(newProc);
             }
         }
         else if (command.rfind("screen -r ", 0) == 0 && schedulerStarted) {

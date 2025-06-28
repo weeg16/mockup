@@ -82,7 +82,8 @@ int main() {
                 clearScreen();
                 printHeader();
 
-                coreManager.start();              
+                coreManager.start();       
+                coreManager.startSchedulerThread(config);     
                 schedulerStarted = true;
             } else {
                 std::cout << "\n[WARN] Scheduler is already running.\n\n";
@@ -103,33 +104,16 @@ int main() {
             }
         }
         else if (command == "report-util") {
-            if (schedulerStarted) {
-                std::ofstream file("csopesy-log.txt");
-                coreManager.printProcessSummary(file, false);
-                file.close();
-                std::cout << "\n[INFO] Report generated at  csopesy-log.txt!\n";
-                std::this_thread::sleep_for(std::chrono::seconds(2));
-                clearScreen();
-                printHeader();
-            } else {
-                std::cout << "\n[WARN] Scheduler is not running.\n\n";
-                std::this_thread::sleep_for(std::chrono::seconds(2));
-                clearScreen();
-                printHeader();
-            }
+            std::ofstream file("csopesy-log.txt");
+            coreManager.printProcessSummary(file, false);
+            file.close();
+            std::cout << "\n[INFO] Report generated at csopesy-log.txt!\n";
+            std::this_thread::sleep_for(std::chrono::seconds(2));
+            clearScreen();
+            printHeader();
         }
         else if (command == "screen -ls") {
-            if (schedulerStarted) {
-                coreManager.printProcessSummary(std::cout, true);
-                // std::this_thread::sleep_for(std::chrono::seconds(2));
-                // clearScreen();
-                // printHeader();
-            } else {
-                std::cout << "\n[WARN] Scheduler is not running.\n\n";
-                std::this_thread::sleep_for(std::chrono::seconds(2));
-                clearScreen();
-                printHeader();
-            }
+            coreManager.printProcessSummary(std::cout, true);
         }
         else if (command.rfind("screen -s ", 0) == 0 && schedulerStarted) {
             std::string pname = command.substr(10);

@@ -19,10 +19,12 @@ static const char* RESET = "\033[0m";
 CoreManager::CoreManager() {
     stop.store(false);
     cpuTicks.store(0);
+    generating.store(false);
 }
 
 CoreManager::~CoreManager() {
     stopScheduler();
+    stopSchedulerThread();
     for (auto* proc : allProcesses) {
         delete proc;
     }
@@ -73,6 +75,34 @@ void CoreManager::stopScheduler() {
     printHeader();
 }
 
+void CoreManager::startSchedulerThread(const Config& config) {
+    if (generating.load()) return;
+
+    generating = true;
+    schedulerThread = std::thread([this, config] {
+        try {
+            while (generating) {
+                std::string pname = "process" + std::to_string(processCounter);
+                std::uniform_int_distribution<uint32_t> dist(config.minIns, config.maxIns);
+                int numIns = dist(rng);
+                auto* proc = new Process(pname, processCounter++, numIns);
+                addProcess(proc);
+                std::this_thread::sleep_for(std::chrono::seconds(config.batchProcFreq));
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "[Scheduler Error] " << e.what() << "\n";
+        }
+    });
+    std::cout << "[INFO] Batch process generation started.\n";
+}
+
+void CoreManager::stopSchedulerThread() {
+    if (!generating.load()) return;
+    generating = false;
+    if (schedulerThread.joinable()) schedulerThread.join();
+    std::cout << "[INFO] Batch process generation stopped.\n";
+}
+
 void CoreManager::addProcess(Process* proc) {
     std::lock_guard<std::mutex> lock(queueMutex);
     readyQueue.push(proc);
@@ -102,53 +132,51 @@ void CoreManager::listProcessStatus() {
 
 void CoreManager::tickLoop() {
     while (!stop) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1)); // 1 tick = 1ms
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         cpuTicks.fetch_add(1);
+        queueCond.notify_all();
+    }
+}
 
-        if (cpuTicks.load() % batchProcessFreq == 0) {
-            std::string pname = "process" + std::to_string(processCounter);
-            std::uniform_int_distribution<uint32_t> insDist(minIns, maxIns);
-            int numIns = insDist(rng);
-            addProcess(new Process(pname, processCounter++, numIns));
-        }
-
-        queueCond.notify_all(); 
+void CoreManager::busyWait(uint32_t milliseconds) {
+    using clock = std::chrono::high_resolution_clock;
+    auto start = clock::now();
+    if (milliseconds == 0) milliseconds = 1;
+    while (true) {
+        auto now = clock::now();
+        if (std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count() >= milliseconds) break;
+        for (volatile int i = 0; i < 1000; ++i);
     }
 }
 
 void CoreManager::coreWorker(int coreId) {
-    while (true) {
+    while (!stop) {
         Process* proc = nullptr;
-
         {
             std::unique_lock<std::mutex> lock(queueMutex);
-            queueCond.wait(lock, [&] {
-                return stop || !readyQueue.empty();
-            });
+            queueCond.wait(lock, [&] { return stop || !readyQueue.empty(); });
 
-            // Check again after wake-up to safely exit
             if (stop && readyQueue.empty()) {
-                coreBusy[coreId] = false; // Optional cleanup
+                coreBusy[coreId] = false;
                 return;
             }
 
             proc = readyQueue.front();
             readyQueue.pop();
-            coreBusy[coreId] = true;
             proc->assignedCore = coreId;
+            coreBusy[coreId] = true;
+
+            if (proc->timestamp.empty()) {
+                proc->timestamp = getCurrentTimestamp();
+            }
         }
 
-        int cycles = 0;
-        while (!proc->isFinished() && (schedulerType == "fcfs" || cycles < quantumCycles)) {
-            int startTick = cpuTicks.load();
-            while (cpuTicks.load() - startTick < delayPerExec) {
-                if (stop) return; // optional safety net
-                std::this_thread::yield(); // prevent CPU spin
-            }
-
+        int remainingQuantum = quantumCycles;
+        while (!proc->isFinished() && (schedulerType == "fcfs" || (schedulerType == "rr" && remainingQuantum-- > 0))) {
+            if (stop) return;
+            busyWait(delayPerExec);
             proc->executeNextInstruction();
             ++coreInstructions[coreId];
-            ++cycles;
         }
 
         if (schedulerType == "rr" && !proc->isFinished()) {

@@ -1,10 +1,3 @@
-/* 
-core_manager.cpp
-
-Implements the CoreManager class, which manages CPU cores, process scheduling (FCFS/RR),
-process queues, process creation, and overall scheduler operation.
-*/
-
 #include "core_manager.h"
 #include "process.h"
 #include "util.h"
@@ -18,13 +11,14 @@ process queues, process creation, and overall scheduler operation.
 #include <queue>
 #include <vector>
 #include <string>
-#include <fstream> 
+#include <fstream>
 
 static const char* ORANGE = "\033[38;5;208m";
 static const char* RESET = "\033[0m";
 
 CoreManager::CoreManager() {
     stop.store(false);
+    cpuTicks.store(0);
 }
 
 CoreManager::~CoreManager() {
@@ -34,10 +28,11 @@ CoreManager::~CoreManager() {
     }
 }
 
-void CoreManager::configure(int coresCount, const std::string& schedType, int quantum, int batchFreq, int minI, int maxI, int delay) {
+void CoreManager::configure(uint32_t coresCount, const std::string& schedType, uint32_t quantum,
+                            uint32_t batchFreq, uint32_t minI, uint32_t maxI, uint32_t delay) {
     numCores = coresCount;
     schedulerType = schedType;
-    quantumCycles = std::max(1, quantum);
+    quantumCycles = std::max<uint32_t>(1, quantum);
     batchProcessFreq = batchFreq;
     minIns = minI;
     maxIns = maxI;
@@ -48,14 +43,14 @@ void CoreManager::configure(int coresCount, const std::string& schedType, int qu
 
 void CoreManager::start() {
     stop = false;
-    cpuTicks = 0;
+    cpuTicks.store(0);
 
     for (auto& t : cores) {
         if (t.joinable()) t.join();
     }
     cores.clear();
 
-    for (int i = 0; i < numCores; ++i) {
+    for (uint32_t i = 0; i < numCores; ++i) {
         cores.emplace_back(&CoreManager::coreWorker, this, i);
     }
 
@@ -74,8 +69,8 @@ void CoreManager::stopScheduler() {
 
     std::cout << "\n[INFO] Scheduler stopped. All cores joined.\n\n";
     std::this_thread::sleep_for(std::chrono::seconds(2));
-                clearScreen();
-                printHeader();
+    clearScreen();
+    printHeader();
 }
 
 void CoreManager::addProcess(Process* proc) {
@@ -87,7 +82,7 @@ void CoreManager::addProcess(Process* proc) {
 
 void CoreManager::reportUtil() {
     std::cout << "\n=== CPU Utilization Report ===\n";
-    for (int i = 0; i < numCores; ++i) {
+    for (uint32_t i = 0; i < numCores; ++i) {
         std::cout << "Core " << i << ": " << coreInstructions[i] << " instructions executed.\n";
     }
     std::cout << "===============================\n\n";
@@ -107,12 +102,12 @@ void CoreManager::listProcessStatus() {
 
 void CoreManager::tickLoop() {
     while (!stop) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // 1 tick
-        cpuTicks++;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1)); // 1 tick = 1ms
+        cpuTicks.fetch_add(1);
 
-        if (cpuTicks % batchProcessFreq == 0) {
+        if (cpuTicks.load() % batchProcessFreq == 0) {
             std::string pname = "process" + std::to_string(processCounter);
-            std::uniform_int_distribution<int> insDist(minIns, maxIns);
+            std::uniform_int_distribution<uint32_t> insDist(minIns, maxIns);
             int numIns = insDist(rng);
             addProcess(new Process(pname, processCounter++, numIns));
         }
@@ -141,15 +136,16 @@ void CoreManager::coreWorker(int coreId) {
 
         int cycles = 0;
         while (!proc->isFinished() && (schedulerType == "fcfs" || cycles < quantumCycles)) {
-            // Simulate execution delay per instruction
-            std::this_thread::sleep_for(std::chrono::milliseconds(delayPerExec));
+            int startTick = cpuTicks.load();
+            while (cpuTicks.load() - startTick < delayPerExec) {
+                std::this_thread::yield(); // non-blocking wait
+            }
 
             proc->executeNextInstruction();
             ++coreInstructions[coreId];
             ++cycles;
         }
 
-        // Requeue if RR quantum expired and process is not yet finished
         if (schedulerType == "rr" && !proc->isFinished()) {
             std::lock_guard<std::mutex> lock(queueMutex);
             readyQueue.push(proc);
@@ -168,7 +164,7 @@ Process* CoreManager::getProcessByName(const std::string& name) {
 }
 
 Process* CoreManager::spawnNewNamedProcess(const std::string& name) {
-    std::uniform_int_distribution<int> dist(minIns, maxIns);
+    std::uniform_int_distribution<uint32_t> dist(minIns, maxIns);
     int numIns = dist(rng);
     Process* proc = new Process(name, processCounter++, numIns);
     addProcess(proc);
@@ -176,7 +172,6 @@ Process* CoreManager::spawnNewNamedProcess(const std::string& name) {
 }
 
 void CoreManager::printProcessSummary(std::ostream& out, bool colorize) {
-    // 1. CPU utilization
     int usedCores = 0;
     for (bool b : coreBusy) if (b) ++usedCores;
     int availableCores = numCores - usedCores;
@@ -192,7 +187,6 @@ void CoreManager::printProcessSummary(std::ostream& out, bool colorize) {
     out << "\nCores used: " << usedCores << "\nCores available: " << availableCores << "\n";
     out << "\n----------------------------------------\n";
 
-    // 2. Running processes
     out << "\nRunning processes:\n\n";
     for (const auto& proc : allProcesses) {
         if (!proc->isFinished()) {
@@ -201,12 +195,13 @@ void CoreManager::printProcessSummary(std::ostream& out, bool colorize) {
             out << "  Core: ";
             outc(std::to_string(proc->assignedCore), ORANGE);
             out << "  ";
-            outc(std::to_string(proc->executedInstructions), ORANGE); 
+            outc(std::to_string(proc->executedInstructions), ORANGE);
             out << " / ";
-            outc(std::to_string(proc->totalInstructions), ORANGE); 
+            outc(std::to_string(proc->totalInstructions), ORANGE);
             out << "\n";
         }
     }
+
     out << "\nFinished processes:\n\n";
     for (const auto& proc : allProcesses) {
         if (proc->isFinished()) {
@@ -219,10 +214,11 @@ void CoreManager::printProcessSummary(std::ostream& out, bool colorize) {
             out << "\n";
         }
     }
+
     out << "\n----------------------------------------\n\n";
 }
 
 int CoreManager::generateRandomInstructionCount() const {
-    std::uniform_int_distribution<int> dist(minIns, maxIns);
+    std::uniform_int_distribution<uint32_t> dist(minIns, maxIns);
     return dist(const_cast<std::default_random_engine&>(rng));
 }

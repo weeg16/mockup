@@ -6,6 +6,8 @@
 #include <vector>
 #include <condition_variable>
 #include <random>
+#include <atomic>
+#include <cstdint>  // for uint32_t
 #include "process.h"
 
 class CoreManager {
@@ -14,7 +16,8 @@ public:
     ~CoreManager();
     Process* getProcessByName(const std::string& name);
 
-    void configure(int coresCount, const std::string& schedType, int quantum, int batchFreq, int minI, int maxI, int delay);
+    void configure(uint32_t coresCount, const std::string& schedType, uint32_t quantum,
+                   uint32_t batchFreq, uint32_t minI, uint32_t maxI, uint32_t delay);
     void start();
     void stopScheduler();
     void addProcess(Process* proc);
@@ -29,16 +32,16 @@ private:
     void coreWorker(int coreId);
 
     // Config
-    int numCores = 2;
+    uint32_t numCores = 2;
     std::string schedulerType = "fcfs";
-    int quantumCycles = 1;
-    int batchProcessFreq = 5;
-    int minIns = 10;
-    int maxIns = 50;
-    int delayPerExec = 0;
+    uint32_t quantumCycles = 1;
+    uint32_t batchProcessFreq = 5;
+    uint32_t minIns = 10;
+    uint32_t maxIns = 50;
+    uint32_t delayPerExec = 0;
 
     // Runtime state
-    int cpuTicks = 0;
+    std::atomic<uint64_t> cpuTicks{0};  // atomic to sync with tick loop
     int processCounter = 1;
 
     // Threads and Sync

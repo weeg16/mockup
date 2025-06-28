@@ -7,7 +7,7 @@
 #include <condition_variable>
 #include <random>
 #include <atomic>
-#include <cstdint>  // for uint32_t
+#include <cstdint>  
 #include "process.h"
 
 class CoreManager {

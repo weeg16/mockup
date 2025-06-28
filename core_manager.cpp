@@ -117,16 +117,20 @@ void CoreManager::tickLoop() {
 }
 
 void CoreManager::coreWorker(int coreId) {
-    while (!stop) {
+    while (true) {
         Process* proc = nullptr;
 
         {
             std::unique_lock<std::mutex> lock(queueMutex);
             queueCond.wait(lock, [&] {
-                return !readyQueue.empty() || stop;
+                return stop || !readyQueue.empty();
             });
 
-            if (stop) return;
+            // Check again after wake-up to safely exit
+            if (stop && readyQueue.empty()) {
+                coreBusy[coreId] = false; // Optional cleanup
+                return;
+            }
 
             proc = readyQueue.front();
             readyQueue.pop();
@@ -138,7 +142,8 @@ void CoreManager::coreWorker(int coreId) {
         while (!proc->isFinished() && (schedulerType == "fcfs" || cycles < quantumCycles)) {
             int startTick = cpuTicks.load();
             while (cpuTicks.load() - startTick < delayPerExec) {
-                std::this_thread::yield(); // non-blocking wait
+                if (stop) return; // optional safety net
+                std::this_thread::yield(); // prevent CPU spin
             }
 
             proc->executeNextInstruction();
